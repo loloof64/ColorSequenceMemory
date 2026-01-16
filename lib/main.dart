@@ -116,69 +116,89 @@ class _MyHomePageState extends State<MyHomePage> {
         MediaQuery.orientationOf(context) == Orientation.portrait;
     final deviceSize = isPortrait ? 0.7 * width : 0.6 * height;
     final middleButtonSize = deviceSize * 0.45;
+
+    final score = _sequence.isNotEmpty ? _sequence.length - 1 : 0;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
       body: Center(
-        child: Stack(
-          alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 4.0,
           children: [
-            SizedBox(
-              width: deviceSize,
-              height: deviceSize,
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: spacing,
-                mainAxisSpacing: spacing,
-                children: [
-                  _soundButton(
-                    context: context,
-                    soundFrequence:
-                        _associatedSounds[QuarterCirclePosition.topLeft],
-                    backgroundColor: Colors.blue,
-                    position: QuarterCirclePosition.topLeft,
-                    highlighted:
-                        _highlightedButton == QuarterCirclePosition.topLeft,
-                  ),
-                  _soundButton(
-                    context: context,
-                    soundFrequence:
-                        _associatedSounds[QuarterCirclePosition.topRight],
-                    backgroundColor: Colors.red,
-                    position: QuarterCirclePosition.topRight,
-                    highlighted:
-                        _highlightedButton == QuarterCirclePosition.topRight,
-                  ),
-                  _soundButton(
-                    context: context,
-                    soundFrequence:
-                        _associatedSounds[QuarterCirclePosition.bottomLeft],
-                    backgroundColor: Colors.yellow,
-                    position: QuarterCirclePosition.bottomLeft,
-                    highlighted:
-                        _highlightedButton == QuarterCirclePosition.bottomLeft,
-                  ),
-                  _soundButton(
-                    context: context,
-                    soundFrequence:
-                        _associatedSounds[QuarterCirclePosition.bottomRight],
-                    backgroundColor: Colors.green,
-                    position: QuarterCirclePosition.bottomRight,
-                    highlighted:
-                        _highlightedButton == QuarterCirclePosition.bottomRight,
-                  ),
-                ],
+            Text(
+              "Score: $score",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize ?? 50,
               ),
             ),
-            SizedBox(
-              width: middleButtonSize,
-              height: middleButtonSize,
-              child: ElevatedButton(
-                onPressed: _handleGameStart,
-                child: Text("Start"),
-              ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: deviceSize,
+                  height: deviceSize,
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                    children: [
+                      _soundButton(
+                        context: context,
+                        soundFrequence:
+                            _associatedSounds[QuarterCirclePosition.topLeft],
+                        backgroundColor: Colors.blue,
+                        position: QuarterCirclePosition.topLeft,
+                        highlighted:
+                            _highlightedButton == QuarterCirclePosition.topLeft,
+                      ),
+                      _soundButton(
+                        context: context,
+                        soundFrequence:
+                            _associatedSounds[QuarterCirclePosition.topRight],
+                        backgroundColor: Colors.red,
+                        position: QuarterCirclePosition.topRight,
+                        highlighted:
+                            _highlightedButton ==
+                            QuarterCirclePosition.topRight,
+                      ),
+                      _soundButton(
+                        context: context,
+                        soundFrequence:
+                            _associatedSounds[QuarterCirclePosition.bottomLeft],
+                        backgroundColor: Colors.yellow,
+                        position: QuarterCirclePosition.bottomLeft,
+                        highlighted:
+                            _highlightedButton ==
+                            QuarterCirclePosition.bottomLeft,
+                      ),
+                      _soundButton(
+                        context: context,
+                        soundFrequence:
+                            _associatedSounds[QuarterCirclePosition
+                                .bottomRight],
+                        backgroundColor: Colors.green,
+                        position: QuarterCirclePosition.bottomRight,
+                        highlighted:
+                            _highlightedButton ==
+                            QuarterCirclePosition.bottomRight,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: middleButtonSize,
+                  height: middleButtonSize,
+                  child: ElevatedButton(
+                    onPressed: _handleGameStart,
+                    child: Text("Start"),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
