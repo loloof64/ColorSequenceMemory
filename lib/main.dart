@@ -40,7 +40,9 @@ class _MyHomePageState extends State<MyHomePage> {
   QuarterCirclePosition? _highlightedButton;
 
   bool _isPlayingSequence = false;
+  bool _gameInProgress = false;
   List<QuarterCirclePosition> _sequence = [];
+  int _checkIndex = 0;
 
   final soundDuration = Duration(milliseconds: 300);
   final playSequenceGap = Duration(milliseconds: 80);
@@ -50,6 +52,10 @@ class _MyHomePageState extends State<MyHomePage> {
     QuarterCirclePosition.bottomRight: 400.0,
     QuarterCirclePosition.bottomLeft: 500.0,
   };
+  final double lostSoundFrequence = 100.0;
+  final lostSoundDuration = Duration(milliseconds: 420);
+  final gapBeforeGameOverSound = Duration(milliseconds: 100);
+  final gapAfterGuessedSequence = Duration(milliseconds: 400);
 
   @override
   void initState() {
@@ -67,7 +73,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _beep({
     required double frequence,
     required Duration duration,
-    required QuarterCirclePosition highlightPosition,
+    required QuarterCirclePosition? highlightPosition,
   }) async {
     if (!_engineReady) return;
     final sound = _engine.genPulse(freq: frequence);
@@ -92,8 +98,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _handleGameStart() async {
+    if (_gameInProgress) return;
     setState(() {
       _sequence = [];
+      _gameInProgress = true;
     });
     _addButtonToSequence();
     await _playSequence();
@@ -107,7 +115,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final isPortrait =
         MediaQuery.orientationOf(context) == Orientation.portrait;
     final deviceSize = isPortrait ? 0.7 * width : 0.6 * height;
-    final middleButtonSize = deviceSize * 0.6;
+    final middleButtonSize = deviceSize * 0.45;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -194,6 +202,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() {
       _isPlayingSequence = false;
+      _checkIndex = 0;
     });
   }
 
@@ -203,12 +212,43 @@ class _MyHomePageState extends State<MyHomePage> {
     required Color backgroundColor,
     required QuarterCirclePosition position,
   }) async {
+    if (!_gameInProgress) return;
     if (_isPlayingSequence) return;
     await _beep(
       frequence: frequence,
       duration: duration,
       highlightPosition: position,
     );
+
+    final isExpectedButton = _sequence[_checkIndex] == position;
+    if (isExpectedButton) {
+      final thereAreMoreButtonsInSeq = _checkIndex < _sequence.length - 1;
+      if (thereAreMoreButtonsInSeq) {
+        setState(() {
+          _checkIndex++;
+        });
+      } else {
+        setState(() {
+          _isPlayingSequence = true;
+        });
+        _addButtonToSequence();
+        await Future.delayed(gapAfterGuessedSequence);
+        await _playSequence();
+      }
+    } else {
+      setState(() {
+        _isPlayingSequence = true;
+      });
+      await Future.delayed(gapBeforeGameOverSound);
+      await _beep(
+        frequence: lostSoundFrequence,
+        duration: lostSoundDuration,
+        highlightPosition: null,
+      );
+      setState(() {
+        _gameInProgress = false;
+      });
+    }
   }
 
   Widget _soundButton({
