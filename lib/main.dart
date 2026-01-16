@@ -12,6 +12,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Color sequence memory',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+      ),
       home: const MyHomePage(title: 'Color sequence memory'),
     );
   }
