@@ -134,6 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }) {
     final minSize = MediaQuery.sizeOf(context).shortestSide;
     final buttonSize = minSize * 0.5;
+    final background = Theme.of(context).scaffoldBackgroundColor;
     return Container(
       color: backgroundColor.withAlpha(highlighted ? 255 : 150),
       width: buttonSize,
@@ -155,7 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Container(
             width: buttonSize,
             height: buttonSize,
-            color: Colors.white,
+            color: background,
           ),
         ),
       ),
