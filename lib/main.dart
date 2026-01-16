@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:minisound/engine.dart';
 
@@ -37,7 +39,17 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _engineReady = false;
   QuarterCirclePosition? _highlightedButton;
 
+  bool _isPlayingSequence = false;
+  List<QuarterCirclePosition> _sequence = [];
+
   final soundDuration = Duration(milliseconds: 300);
+  final playSequenceGap = Duration(milliseconds: 80);
+  final _associatedSounds = <QuarterCirclePosition, double>{
+    QuarterCirclePosition.topLeft: 200.0,
+    QuarterCirclePosition.topRight: 300.0,
+    QuarterCirclePosition.bottomRight: 400.0,
+    QuarterCirclePosition.bottomLeft: 500.0,
+  };
 
   @override
   void initState() {
@@ -52,7 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _beep({
+  Future<void> _beep({
     required double frequence,
     required Duration duration,
     required QuarterCirclePosition highlightPosition,
@@ -70,6 +82,23 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void _addButtonToSequence() {
+    final values = QuarterCirclePosition.values;
+    final nextSideOrdinal = Random().nextInt(values.length);
+    final nextButton = values[nextSideOrdinal];
+    setState(() {
+      _sequence.add(nextButton);
+    });
+  }
+
+  Future<void> _handleGameStart() async {
+    setState(() {
+      _sequence = [];
+    });
+    _addButtonToSequence();
+    await _playSequence();
+  }
+
   @override
   Widget build(BuildContext context) {
     final spacing = 3.0;
@@ -78,56 +107,107 @@ class _MyHomePageState extends State<MyHomePage> {
     final isPortrait =
         MediaQuery.orientationOf(context) == Orientation.portrait;
     final deviceSize = isPortrait ? 0.7 * width : 0.6 * height;
+    final middleButtonSize = deviceSize * 0.6;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
       body: Center(
-        child: SizedBox(
-          width: deviceSize,
-          height: deviceSize,
-          child: GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
-            children: [
-              _soundButton(
-                context: context,
-                soundFrequence: 200.0,
-                backgroundColor: Colors.blue,
-                position: QuarterCirclePosition.topLeft,
-                highlighted:
-                    _highlightedButton == QuarterCirclePosition.topLeft,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: deviceSize,
+              height: deviceSize,
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+                children: [
+                  _soundButton(
+                    context: context,
+                    soundFrequence:
+                        _associatedSounds[QuarterCirclePosition.topLeft],
+                    backgroundColor: Colors.blue,
+                    position: QuarterCirclePosition.topLeft,
+                    highlighted:
+                        _highlightedButton == QuarterCirclePosition.topLeft,
+                  ),
+                  _soundButton(
+                    context: context,
+                    soundFrequence:
+                        _associatedSounds[QuarterCirclePosition.topRight],
+                    backgroundColor: Colors.red,
+                    position: QuarterCirclePosition.topRight,
+                    highlighted:
+                        _highlightedButton == QuarterCirclePosition.topRight,
+                  ),
+                  _soundButton(
+                    context: context,
+                    soundFrequence:
+                        _associatedSounds[QuarterCirclePosition.bottomLeft],
+                    backgroundColor: Colors.yellow,
+                    position: QuarterCirclePosition.bottomLeft,
+                    highlighted:
+                        _highlightedButton == QuarterCirclePosition.bottomLeft,
+                  ),
+                  _soundButton(
+                    context: context,
+                    soundFrequence:
+                        _associatedSounds[QuarterCirclePosition.bottomRight],
+                    backgroundColor: Colors.green,
+                    position: QuarterCirclePosition.bottomRight,
+                    highlighted:
+                        _highlightedButton == QuarterCirclePosition.bottomRight,
+                  ),
+                ],
               ),
-              _soundButton(
-                context: context,
-                soundFrequence: 300.0,
-                backgroundColor: Colors.red,
-                position: QuarterCirclePosition.topRight,
-                highlighted:
-                    _highlightedButton == QuarterCirclePosition.topRight,
+            ),
+            SizedBox(
+              width: middleButtonSize,
+              height: middleButtonSize,
+              child: ElevatedButton(
+                onPressed: _handleGameStart,
+                child: Text("Start"),
               ),
-              _soundButton(
-                context: context,
-                soundFrequence: 500.0,
-                backgroundColor: Colors.yellow,
-                position: QuarterCirclePosition.bottomLeft,
-                highlighted:
-                    _highlightedButton == QuarterCirclePosition.bottomLeft,
-              ),
-              _soundButton(
-                context: context,
-                soundFrequence: 400.0,
-                backgroundColor: Colors.green,
-                position: QuarterCirclePosition.bottomRight,
-                highlighted:
-                    _highlightedButton == QuarterCirclePosition.bottomRight,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Future<void> _playSequence() async {
+    setState(() {
+      _isPlayingSequence = true;
+    });
+
+    for (final side in _sequence) {
+      await _beep(
+        frequence: _associatedSounds[side]!,
+        duration: soundDuration,
+        highlightPosition: side,
+      );
+      await Future.delayed(playSequenceGap);
+    }
+
+    setState(() {
+      _isPlayingSequence = false;
+    });
+  }
+
+  Future<void> _handleButtonPress({
+    required double frequence,
+    required Duration duration,
+    required Color backgroundColor,
+    required QuarterCirclePosition position,
+  }) async {
+    if (_isPlayingSequence) return;
+    await _beep(
+      frequence: frequence,
+      duration: duration,
+      highlightPosition: position,
     );
   }
 
@@ -152,10 +232,11 @@ class _MyHomePageState extends State<MyHomePage> {
           shape: const RoundedRectangleBorder(),
           padding: EdgeInsets.zero,
         ),
-        onPressed: () => _beep(
+        onPressed: () => _handleButtonPress(
           frequence: soundFrequence,
           duration: soundDuration,
-          highlightPosition: position,
+          position: position,
+          backgroundColor: background,
         ),
         child: ClipPath(
           clipper: QuarterCircleClipper(position),
