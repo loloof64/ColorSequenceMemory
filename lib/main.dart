@@ -142,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final buttonSize = minSize * 0.5;
     final background = Theme.of(context).scaffoldBackgroundColor;
     return Container(
-      color: backgroundColor.withAlpha(highlighted ? 255 : 150),
+      color: backgroundColor.withAlpha(highlighted ? 255 : 100),
       width: buttonSize,
       height: buttonSize,
       child: ElevatedButton(
