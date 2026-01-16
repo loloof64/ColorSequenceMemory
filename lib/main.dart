@@ -29,6 +29,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late final Engine _engine;
   bool _engineReady = false;
+  QuarterCirclePosition? _highlightedButton;
 
   final soundDuration = Duration(milliseconds: 300);
 
@@ -45,12 +46,22 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _beep(double frequence, Duration duration) async {
+  void _beep({
+    required double frequence,
+    required Duration duration,
+    required QuarterCirclePosition highlightPosition,
+  }) async {
     if (!_engineReady) return;
     final sound = _engine.genPulse(freq: frequence);
+    setState(() {
+      _highlightedButton = highlightPosition;
+    });
     sound.play();
     await Future.delayed(duration);
     sound.stop();
+    setState(() {
+      _highlightedButton = null;
+    });
   }
 
   @override
@@ -68,28 +79,34 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisSpacing: spacing,
           children: [
             _soundButton(
-              context,
-              200.0,
-              Colors.blue,
-              QuarterCirclePosition.topLeft,
+              context: context,
+              soundFrequence: 200.0,
+              backgroundColor: Colors.blue,
+              position: QuarterCirclePosition.topLeft,
+              highlighted: _highlightedButton == QuarterCirclePosition.topLeft,
             ),
             _soundButton(
-              context,
-              300.0,
-              Colors.red,
-              QuarterCirclePosition.topRight,
+              context: context,
+              soundFrequence: 300.0,
+              backgroundColor: Colors.red,
+              position: QuarterCirclePosition.topRight,
+              highlighted: _highlightedButton == QuarterCirclePosition.topRight,
             ),
             _soundButton(
-              context,
-              500.0,
-              Colors.yellow,
-              QuarterCirclePosition.bottomLeft,
+              context: context,
+              soundFrequence: 500.0,
+              backgroundColor: Colors.yellow,
+              position: QuarterCirclePosition.bottomLeft,
+              highlighted:
+                  _highlightedButton == QuarterCirclePosition.bottomLeft,
             ),
             _soundButton(
-              context,
-              400.0,
-              Colors.green,
-              QuarterCirclePosition.bottomRight,
+              context: context,
+              soundFrequence: 400.0,
+              backgroundColor: Colors.green,
+              position: QuarterCirclePosition.bottomRight,
+              highlighted:
+                  _highlightedButton == QuarterCirclePosition.bottomRight,
             ),
           ],
         ),
@@ -97,27 +114,31 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _soundButton(
-    BuildContext context,
-    soundFrequence,
-    Color backgroundColor,
-    QuarterCirclePosition position,
-  ) {
+  Widget _soundButton({
+    required BuildContext context,
+    required soundFrequence,
+    required Color backgroundColor,
+    required QuarterCirclePosition position,
+    required bool highlighted,
+  }) {
     final minSize = MediaQuery.sizeOf(context).shortestSide;
     final buttonSize = minSize * 0.5;
     return Container(
-      color: backgroundColor,
+      color: backgroundColor.withAlpha(highlighted ? 255 : 150),
       width: buttonSize,
       height: buttonSize,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          elevation: 0,
           shadowColor: Colors.transparent,
           backgroundColor: Colors.transparent,
           shape: const RoundedRectangleBorder(),
           padding: EdgeInsets.zero,
         ),
-        onPressed: () => _beep(soundFrequence, soundDuration),
+        onPressed: () => _beep(
+          frequence: soundFrequence,
+          duration: soundDuration,
+          highlightPosition: position,
+        ),
         child: ClipPath(
           clipper: QuarterCircleClipper(position),
           child: Container(
