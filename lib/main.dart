@@ -67,48 +67,59 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     final spacing = 3.0;
+    final width = MediaQuery.sizeOf(context).width;
+    final height = MediaQuery.sizeOf(context).height;
+    final isPortrait =
+        MediaQuery.orientationOf(context) == Orientation.portrait;
+    final deviceSize = isPortrait ? 0.7 * width : 0.6 * height;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
       body: Center(
-        child: GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: spacing,
-          mainAxisSpacing: spacing,
-          children: [
-            _soundButton(
-              context: context,
-              soundFrequence: 200.0,
-              backgroundColor: Colors.blue,
-              position: QuarterCirclePosition.topLeft,
-              highlighted: _highlightedButton == QuarterCirclePosition.topLeft,
-            ),
-            _soundButton(
-              context: context,
-              soundFrequence: 300.0,
-              backgroundColor: Colors.red,
-              position: QuarterCirclePosition.topRight,
-              highlighted: _highlightedButton == QuarterCirclePosition.topRight,
-            ),
-            _soundButton(
-              context: context,
-              soundFrequence: 500.0,
-              backgroundColor: Colors.yellow,
-              position: QuarterCirclePosition.bottomLeft,
-              highlighted:
-                  _highlightedButton == QuarterCirclePosition.bottomLeft,
-            ),
-            _soundButton(
-              context: context,
-              soundFrequence: 400.0,
-              backgroundColor: Colors.green,
-              position: QuarterCirclePosition.bottomRight,
-              highlighted:
-                  _highlightedButton == QuarterCirclePosition.bottomRight,
-            ),
-          ],
+        child: SizedBox(
+          width: deviceSize,
+          height: deviceSize,
+          child: GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+            children: [
+              _soundButton(
+                context: context,
+                soundFrequence: 200.0,
+                backgroundColor: Colors.blue,
+                position: QuarterCirclePosition.topLeft,
+                highlighted:
+                    _highlightedButton == QuarterCirclePosition.topLeft,
+              ),
+              _soundButton(
+                context: context,
+                soundFrequence: 300.0,
+                backgroundColor: Colors.red,
+                position: QuarterCirclePosition.topRight,
+                highlighted:
+                    _highlightedButton == QuarterCirclePosition.topRight,
+              ),
+              _soundButton(
+                context: context,
+                soundFrequence: 500.0,
+                backgroundColor: Colors.yellow,
+                position: QuarterCirclePosition.bottomLeft,
+                highlighted:
+                    _highlightedButton == QuarterCirclePosition.bottomLeft,
+              ),
+              _soundButton(
+                context: context,
+                soundFrequence: 400.0,
+                backgroundColor: Colors.green,
+                position: QuarterCirclePosition.bottomRight,
+                highlighted:
+                    _highlightedButton == QuarterCirclePosition.bottomRight,
+              ),
+            ],
+          ),
         ),
       ),
     );
