@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_i18n/flutter_i18n.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:minisound/engine.dart';
 
 void main() {
@@ -12,7 +14,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Color sequence memory',
+      onGenerateTitle: (context) => FlutterI18n.
+      translate(context, "title"),
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -20,15 +23,29 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const MyHomePage(title: 'Color sequence memory'),
+      localizationsDelegates: [
+        FlutterI18nDelegate(
+          translationLoader: FileTranslationLoader(
+            useCountryCode: false,
+            fallbackFile: 'en',
+            basePath: 'assets/flutter_i18n',
+          ),
+        ),
+        ...GlobalMaterialLocalizations.delegates,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('es'),
+        Locale('fr'),
+      ],
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -135,7 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Text(FlutterI18n.translate(context, "title")),
       ),
       body: Center(
         child: Column(
@@ -143,7 +160,7 @@ class _MyHomePageState extends State<MyHomePage> {
           spacing: 4.0,
           children: [
             Text(
-              "Score: $score",
+              "${FlutterI18n.translate(context, "score")}: $score",
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize ?? 50,
@@ -208,7 +225,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   height: middleButtonSize,
                   child: ElevatedButton(
                     onPressed: _handleGameStart,
-                    child: Text("Start"),
+                    child: I18nText("start_game"),
                   ),
                 ),
               ],
