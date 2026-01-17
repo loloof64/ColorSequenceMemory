@@ -57,12 +57,22 @@ class _MyHomePageState extends State<MyHomePage> {
   final gapBeforeGameOverSound = Duration(milliseconds: 100);
   final gapAfterGuessedSequence = Duration(milliseconds: 400);
 
+  // Pre-generated sounds to reuse
+  late final Map<QuarterCirclePosition, dynamic> _preSounds = {};
+  late final dynamic _lostSound;
+
   @override
   void initState() {
     super.initState();
     _engine = Engine();
     _engine.init().then((_) {
       _engine.start().then((_) {
+        // Pre-generate all sounds
+        for (final entry in _associatedSounds.entries) {
+          _preSounds[entry.key] = _engine.genPulse(freq: entry.value);
+        }
+        _lostSound = _engine.genPulse(freq: lostSoundFrequence);
+        
         setState(() {
           _engineReady = true;
         });
@@ -76,7 +86,10 @@ class _MyHomePageState extends State<MyHomePage> {
     required QuarterCirclePosition? highlightPosition,
   }) async {
     if (!_engineReady) return;
-    final sound = _engine.genPulse(freq: frequence);
+    final sound = highlightPosition != null 
+        ? _preSounds[highlightPosition]
+        : _lostSound;
+    
     setState(() {
       _highlightedButton = highlightPosition;
     });
