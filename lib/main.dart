@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_i18n/flutter_i18n.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:minisound/engine.dart';
+import 'package:minisound/player_flutter.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,8 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      onGenerateTitle: (context) => FlutterI18n.
-      translate(context, "title"),
+      onGenerateTitle: (context) => FlutterI18n.translate(context, "title"),
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -34,11 +33,7 @@ class MyApp extends StatelessWidget {
         ...GlobalMaterialLocalizations.delegates,
         GlobalWidgetsLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('es'),
-        Locale('fr'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('es'), Locale('fr')],
       home: const MyHomePage(),
     );
   }
@@ -52,7 +47,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late final Engine _engine;
+  late final Player _engine;
   bool _engineReady = false;
   QuarterCirclePosition? _highlightedButton;
 
@@ -81,15 +76,24 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _engine = Engine();
+    _engine = Player();
     _engine.init().then((_) {
       _engine.start().then((_) {
         // Pre-generate all sounds
         for (final entry in _associatedSounds.entries) {
-          _preSounds[entry.key] = _engine.genPulse(freq: entry.value);
+          final sound = _engine.genWaveform(
+            WaveformType.square,
+            freq: entry.value,
+          );
+          sound.volume = 0.25;
+          _preSounds[entry.key] = sound;
         }
-        _lostSound = _engine.genPulse(freq: lostSoundFrequence);
-        
+        _lostSound = _engine.genWaveform(
+          WaveformType.square,
+          freq: lostSoundFrequence,
+        );
+        _lostSound.volume = 0.25;
+
         setState(() {
           _engineReady = true;
         });
@@ -103,10 +107,10 @@ class _MyHomePageState extends State<MyHomePage> {
     required QuarterCirclePosition? highlightPosition,
   }) async {
     if (!_engineReady) return;
-    final sound = highlightPosition != null 
+    final sound = highlightPosition != null
         ? _preSounds[highlightPosition]
         : _lostSound;
-    
+
     setState(() {
       _highlightedButton = highlightPosition;
     });
