@@ -1,0 +1,455 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# metadata
+# ══════════════════════════════════════════════════════════════════════════════
+name: build_releases
+run-name: Release ${{ github.ref_name }}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# triggers
+# ══════════════════════════════════════════════════════════════════════════════
+on:
+  push:
+    branches: [releases]
+  workflow_dispatch:
+
+# ══════════════════════════════════════════════════════════════════════════════
+# security (permissions)
+# ══════════════════════════════════════════════════════════════════════════════
+permissions:
+  contents: write
+
+# ══════════════════════════════════════════════════════════════════════════════
+# global configuration (Usable by all jobs)
+# ══════════════════════════════════════════════════════════════════════════════
+env:
+  APP_NAME: color_sequence_memory
+  APP_DISPLAY_NAME: Color sequence memory
+  APP_ID: com.loloof64.color_sequence_memory
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JOBS
+# ══════════════════════════════════════════════════════════════════════════════
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # Resolve the current tag on the branch
+  # ────────────────────────────────────────────────────────────────
+  prepare:
+    runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Get current tag
+        id: tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  # ────────────────────────────────────────────────────────────────
+  # Android – APK
+  # ────────────────────────────────────────────────────────────────
+  build-android:
+    needs: prepare
+    runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: latest
+
+      - name: Decode keystore & write key.properties
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${STORE_PASSWORD}
+          keyPassword=${KEY_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - name: Rename artifacts
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "${APP_NAME}-${TAG}.apk"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: android
+          path: |
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.apk
+
+  # ────────────────────────────────────────────────────────────────
+  # Linux – AppImage, DEB, RPM
+  # ────────────────────────────────────────────────────────────────
+  build-linux:
+    needs: prepare
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: latest
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libwebkit2gtk-4.1-dev libsecret-1-dev \
+            rpm patchelf libfuse2
+      - run: flutter pub get
+      - run: flutter build linux --release
+
+      # ── DEB ──────────────────────────────────────────────────────
+      - name: Package DEB
+        run: |
+          PKG=deb_pkg
+          mkdir -p "$PKG/DEBIAN"
+          mkdir -p "$PKG/usr/lib/$APP_NAME"
+          mkdir -p "$PKG/usr/bin"
+          mkdir -p "$PKG/usr/share/applications"
+          mkdir -p "$PKG/usr/share/pixmaps"
+
+          cp -r build/linux/x64/release/bundle/* "$PKG/usr/lib/$APP_NAME/"
+
+          cat > "$PKG/usr/bin/$APP_NAME" << 'LAUNCHER'
+          #!/bin/sh
+          exec /usr/lib/color_sequence_memory/color_sequence_memory "$@"
+          LAUNCHER
+          chmod 755 "$PKG/usr/bin/$APP_NAME"
+
+          cat > "$PKG/usr/share/applications/$APP_NAME.desktop" << DESKTOP
+          [Desktop Entry]
+          Name=${APP_DISPLAY_NAME}
+          Exec=${APP_NAME}
+          Icon=${APP_NAME}
+          Type=Application
+          Categories=Game;
+          DESKTOP
+
+          [ -f assets/images/logo.png ] && \
+            cp assets/images/logo.png "$PKG/usr/share/pixmaps/$APP_NAME.png"
+
+          cat > "$PKG/DEBIAN/control" << CTRL
+          Package: color-sequence-memory
+          Version: ${VERSION}
+          Section: games
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libsecret-1-0
+          Maintainer: loloof64
+          Description: Memorize the sequence, then repeat it.
+          CTRL
+
+          dpkg-deb --build "$PKG" "${APP_NAME}-${TAG}.deb"
+
+      # ── RPM ──────────────────────────────────────────────────────
+      - name: Package RPM
+        run: |
+          TOP="$(pwd)/rpmbuild"
+          mkdir -p "$TOP"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+          STAGED="$TOP/BUILD/staged"
+          mkdir -p "$STAGED/usr/lib/$APP_NAME"
+          mkdir -p "$STAGED/usr/bin"
+          mkdir -p "$STAGED/usr/share/applications"
+
+          cp -r build/linux/x64/release/bundle/* "$STAGED/usr/lib/$APP_NAME/"
+
+          cat > "$STAGED/usr/bin/$APP_NAME" << 'LAUNCHER'
+          #!/bin/sh
+          exec /usr/lib/color_sequence_memory/color_sequence_memory "$@"
+          LAUNCHER
+          chmod 755 "$STAGED/usr/bin/$APP_NAME"
+
+          cat > "$STAGED/usr/share/applications/$APP_NAME.desktop" << DESKTOP
+          [Desktop Entry]
+          Name=${APP_DISPLAY_NAME}
+          Exec=${APP_NAME}
+          Icon=${APP_NAME}
+          Type=Application
+          Categories=Game;Education;
+          DESKTOP
+
+          cat > "$TOP/SPECS/$APP_NAME.spec" << SPEC
+          Name:           chess-exercises-notes
+          Version:        ${VERSION}
+          Release:        1
+          Summary:        ${APP_DISPLAY_NAME}
+          License:        MIT
+          AutoReqProv:    no
+          Requires:       gtk3, webkit2gtk4.1, libsecret
+
+          %description
+          Memorize the sequence, then repeat it.
+
+          %install
+          cp -a ${STAGED}/* %{buildroot}/
+
+          %files
+          /usr/lib/${APP_NAME}/
+          /usr/bin/${APP_NAME}
+          /usr/share/applications/${APP_NAME}.desktop
+          SPEC
+
+          rpmbuild --define "_topdir $TOP" -bb "$TOP/SPECS/$APP_NAME.spec"
+          cp "$TOP/RPMS/x86_64/"*.rpm "${APP_NAME}-${TAG}.rpm"
+
+      # ── AppImage ─────────────────────────────────────────────────
+      - name: Package AppImage
+        run: |
+          APP_DIR=AppDir
+          mkdir -p "$APP_DIR/usr/bin"
+          mkdir -p "$APP_DIR/usr/lib"
+          mkdir -p "$APP_DIR/usr/share/applications"
+          mkdir -p "$APP_DIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r build/linux/x64/release/bundle/* "$APP_DIR/usr/bin/"
+
+          # ── Bundle system shared libraries needed at runtime ──
+          # Collect shared-lib deps of the main binary + Flutter plugin
+          # .so files, then do two extra passes for transitive deps.
+          # glibc / ld / libgcc / libstdc++ are excluded, plus GPU driver-level
+          # graphics libs (EGL, GL, Mesa, Vulkan, DRM, GBM) so Flutter always uses
+          # the host system's own driver stack.
+          # libepoxy IS bundled: it resolves EGL/GL functions via dlopen() at runtime.
+          # Since libEGL/libGL are NOT bundled, libepoxy's dlopen("libEGL.so.1")
+          # falls through to the host's real driver, which has the proper platform
+          # extensions.  This avoids "No provider of eglGetPlatformDisplayEXT" on
+          # Fedora/NVIDIA while keeping the AppImage self-contained.
+          EXCLUDE_RE="^()"
+
+          bundle_deps() {
+            local dest="$1"; shift
+            for bin in "$@"; do
+              [ -f "$bin" ] || continue
+              ldd "$bin" 2>/dev/null | grep "=> /" | awk '{print $3}'
+            done | sort -u | while read -r lib; do
+              local name; name=$(basename "$lib")
+              echo "$name" | grep -qE "$EXCLUDE_RE" && continue
+              [ -f "$dest/$name" ] && continue
+              cp -L "$lib" "$dest/" 2>/dev/null || true
+            done
+          }
+
+          # Pass 1 – direct deps of the executable and its plugins
+          bundle_deps "$APP_DIR/usr/lib" \
+            "$APP_DIR/usr/bin/$APP_NAME" "$APP_DIR/usr/bin/lib/"*.so
+
+          # Pass 2 – transitive deps of the libraries we just copied
+          bundle_deps "$APP_DIR/usr/lib" "$APP_DIR/usr/lib/"*.so*
+
+          # Pass 3 – one more level of transitive deps
+          bundle_deps "$APP_DIR/usr/lib" "$APP_DIR/usr/lib/"*.so*
+
+          # Safety net: remove any GPU driver libs that slipped through transitive deps.
+          # These MUST come from the host to avoid EGL/GL driver mismatches.
+          # Note: libepoxy is intentionally KEPT – it's a pure function-pointer resolver
+          # that dlopen()s the host's libEGL/libGL at runtime.
+          ( cd "$APP_DIR/usr/lib" && rm -f libEGL.so* libGL.so* libGLX.so* \
+              libGLdispatch.so* libGLESv2.so* libOpenGL.so* libvulkan.so* \
+              libdrm.so* libgbm.so* libglapi.so* \
+              libwayland-egl.so* libxcb-glx.so* libxcb-dri*.so* 2>/dev/null || true )
+
+          # ── Bundle WebKit process helper executables ──
+          WEBKIT_PROC_DIR="/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+          if [ -d "$WEBKIT_PROC_DIR" ]; then
+            mkdir -p "$APP_DIR/usr/lib/webkit2gtk-4.1"
+            cp -a "$WEBKIT_PROC_DIR/"* "$APP_DIR/usr/lib/webkit2gtk-4.1/"
+          fi
+
+          cat > "$APP_DIR/$APP_NAME.desktop" << DESKTOP
+          [Desktop Entry]
+          Name=${APP_DISPLAY_NAME}
+          Exec=${APP_NAME}
+          Icon=${APP_NAME}
+          Type=Application
+          Categories=Game;Education;
+          DESKTOP
+          cp "$APP_DIR/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/"
+
+          if [ -f assets/images/logo.png ]; then
+            cp assets/images/logo.png "$APP_DIR/$APP_NAME.png"
+            cp assets/images/logo.png \
+               "$APP_DIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+          else
+            touch "$APP_DIR/$APP_NAME.png"
+          fi
+
+          cat > "$APP_DIR/AppRun" << 'APPRUN'
+          #!/bin/sh
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export LD_LIBRARY_PATH="$HERE/usr/bin/lib:$HERE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export WEBKIT_EXEC_PATH="$HERE/usr/lib/webkit2gtk-4.1"
+          # Suppress "Failed to load module" warnings for optional GTK modules
+          # (canberra-gtk-module, pk-gtk-module) that are not bundled.
+          export GTK_MODULES=""
+          exec "$HERE/usr/bin/color_sequence_memory" "$@"
+          APPRUN
+          chmod +x "$APP_DIR/AppRun"
+
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+               -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run "$APP_DIR" "${APP_NAME}-${TAG}.AppImage"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: linux
+          path: |
+            ${{ env.APP_NAME }}-${{ env.TAG }}.deb
+            ${{ env.APP_NAME }}-${{ env.TAG }}.rpm
+            ${{ env.APP_NAME }}-${{ env.TAG }}.AppImage
+
+  # ────────────────────────────────────────────────────────────────
+  # Windows – Installer EXE (Inno Setup), ZIP
+  # ────────────────────────────────────────────────────────────────
+  build-windows:
+    needs: prepare
+    runs-on: windows-latest
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: latest
+      - run: flutter pub get
+      - run: flutter build windows --release
+
+      - name: Bundle VC++ runtime DLLs
+        shell: pwsh
+        run: |
+          $releaseDir = "build\windows\x64\runner\Release"
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -property installationPath
+          $crtDir = Get-ChildItem -Path "$vsPath\VC\Redist\MSVC" -Recurse -Directory `
+            -Filter "Microsoft.VC*.CRT" |
+            Where-Object { $_.FullName -match '\\x64\\' } |
+            Select-Object -First 1
+          if (-not $crtDir) { throw "VC++ CRT directory not found" }
+          foreach ($dll in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+            Copy-Item (Join-Path $crtDir.FullName $dll) -Destination $releaseDir
+          }
+
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path "build\windows\x64\runner\Release\*" `
+            -DestinationPath "${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.zip"
+
+      - name: Build Installer EXE (Inno Setup)
+        shell: pwsh
+        run: |
+          $issContent = @"
+          [Setup]
+          AppName=${{ env.APP_DISPLAY_NAME }}
+          AppVersion=${{ needs.prepare.outputs.version }}
+          AppPublisher=loloof64
+          AppId=${{ env.APP_ID }}
+          DefaultDirName={autopf}\${{ env.APP_DISPLAY_NAME }}
+          DefaultGroupName=${{ env.APP_DISPLAY_NAME }}
+          OutputDir=.
+          OutputBaseFilename=${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          UninstallDisplayIcon={app}\${{ env.APP_NAME }}.exe
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\${{ env.APP_DISPLAY_NAME }}"; Filename: "{app}\${{ env.APP_NAME }}.exe"
+          Name: "{autodesktop}\${{ env.APP_DISPLAY_NAME }}"; Filename: "{app}\${{ env.APP_NAME }}.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
+
+          [Run]
+          Filename: "{app}\${{ env.APP_NAME }}.exe"; Description: "Launch ${{ env.APP_DISPLAY_NAME }}"; Flags: nowait postinstall skipifsilent
+          "@
+          $issContent | Out-File -FilePath "installer.iss" -Encoding UTF8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: windows
+          path: |
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.zip
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.exe
+
+  # ────────────────────────────────────────────────────────────────
+  # Publish GitHub Release
+  # ────────────────────────────────────────────────────────────────
+  release:
+    needs: [prepare, build-android, build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
+
+      - name: Read release message
+        id: message
+        run: |
+          if [ -f release_message.md ]; then
+            {
+              echo "body<<__RELEASE_BODY_EOF__"
+              cat release_message.md
+              echo "__RELEASE_BODY_EOF__"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "body=Release ${{ needs.prepare.outputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: "Release ${{ needs.prepare.outputs.tag }}"
+          body: ${{ steps.message.outputs.body }}
+          files: |
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.apk
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.deb
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.rpm
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.AppImage
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.zip
+            ${{ env.APP_NAME }}-${{ needs.prepare.outputs.tag }}.exe
