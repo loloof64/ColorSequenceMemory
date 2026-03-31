@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+assets/images/bleu.png
+assets/images/bleu.xcf
+assets/images/fond.png
+assets/images/jaune.png
+assets/images/logo.png.xcf
+assets/images/logo2.png
+assets/images/rouge.png
+assets/images/rouge.xcf
+assets/images/vert.png
