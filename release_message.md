@@ -1,1 +1,2 @@
-First usable version.
+- fix some spanish translations
+- migrate android plugin
