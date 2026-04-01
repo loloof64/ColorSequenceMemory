@@ -17,7 +17,7 @@ sudo add-apt-repository universe
 then
 
 ```bash
-sudo apt install ./chess_exercises_notes-vx.x.x.deb
+sudo apt install ./color_sequence_memory-vx.x.x.deb
 ```
 
 where you replace x.x.x with the package version.
