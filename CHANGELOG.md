@@ -1,3 +1,8 @@
+# v1.0.8
+
+- fix no sound in linux artifacts
+- fix no icon on application window
+
 # v1.0.7
 
 - fix release v1.0.6 overriding v1.0.5

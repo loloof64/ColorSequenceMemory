@@ -26,6 +26,9 @@ void main() async {
       title: "Chess exercises notes",
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      if (Platform.isLinux) {
+        await windowManager.setIcon('assets/images/logo.png');
+      }
       await windowManager.show();
       await windowManager.focus();
     });

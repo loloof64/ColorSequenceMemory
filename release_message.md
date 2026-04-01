@@ -1,1 +1,2 @@
 - fix no sound in linux artifacts
+- fix no icon on application window
