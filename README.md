@@ -1,5 +1,7 @@
 # Color sequence memory
 
+[![build_releases](https://github.com/loloof64/ColorSequenceMemory/actions/workflows/main.yml/badge.svg)](https://github.com/loloof64/ColorSequenceMemory/actions/workflows/main.yml)
+
 Memorize the sequence, then repeat it.
 
 ## Special installation notes
