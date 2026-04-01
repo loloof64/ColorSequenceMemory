@@ -152,6 +152,7 @@ jobs:
           mkdir -p "$PKG/usr/bin"
           mkdir -p "$PKG/usr/share/applications"
           mkdir -p "$PKG/usr/share/pixmaps"
+          mkdir -p "$PKG/usr/share/icons/hicolor/256x256/apps"
 
           cp -r build/linux/x64/release/bundle/* "$PKG/usr/lib/$APP_NAME/"
 
@@ -171,8 +172,34 @@ jobs:
           Categories=Game;
           DESKTOP
 
-          [ -f assets/images/logo.png ] && \
+          if [ -f assets/images/logo.png ]; then
             cp assets/images/logo.png "$PKG/usr/share/pixmaps/$APP_NAME.png"
+            cp assets/images/logo.png "$PKG/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+          fi
+
+          cat > "$PKG/DEBIAN/postinst" << 'POSTINST'
+          #!/bin/sh
+          set -e
+          if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+          fi
+          if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+          fi
+          POSTINST
+          chmod 755 "$PKG/DEBIAN/postinst"
+
+          cat > "$PKG/DEBIAN/postrm" << 'POSTRM'
+          #!/bin/sh
+          set -e
+          if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+          fi
+          if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+          fi
+          POSTRM
+          chmod 755 "$PKG/DEBIAN/postrm"
 
           cat > "$PKG/DEBIAN/control" << CTRL
           Package: color-sequence-memory
