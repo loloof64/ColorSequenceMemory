@@ -1,2 +1,2 @@
-- fix no sound in linux artifacts
-- fix no icon on application window
+- fix no sound in Rpm based linux AppImage
+- fix no icon on application window for Rpm based linux

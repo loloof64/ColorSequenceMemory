@@ -1,3 +1,8 @@
+# v1.0.9
+
+- fix no sound in Rpm based linux AppImage
+- fix no icon on application window for Rpm based linux
+
 # v1.0.8
 
 - fix no sound in linux artifacts

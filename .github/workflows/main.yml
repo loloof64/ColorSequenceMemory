@@ -347,16 +347,13 @@ jobs:
               libdrm.so* libgbm.so* libglapi.so* \
               libwayland-egl.so* libxcb-glx.so* libxcb-dri*.so* 2>/dev/null || true )
 
-          # Bundle ALSA and PulseAudio explicitly: MiniAudio loads them via
-          # dlopen() at runtime so ldd never reports them as dependencies.
-          # PulseAudio (libpulse) is the preferred backend on PipeWire desktops;
-          # ALSA (libasound) is the fallback for systems without pipewire-pulse.
-          for lib in /usr/lib/x86_64-linux-gnu/libasound.so.2* \
-                     /usr/lib/x86_64-linux-gnu/libpulse.so.0* \
-                     /usr/lib/x86_64-linux-gnu/libpulse-simple.so.0* \
-                     /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so; do
-            [ -f "$lib" ] && cp -L "$lib" "$APP_DIR/usr/lib/" || true
-          done
+          # Audio libs (libasound, libpulse) are intentionally NOT bundled.
+          # MiniAudio loads them at runtime via dlopen(), so exclusion is safe.
+          # Bundling them from Ubuntu would break audio on other distros (e.g.
+          # Fedora): Ubuntu's libpulse.so.0 cannot talk to a foreign PipeWire
+          # daemon, and Ubuntu's libasound.so.2 ignores the host ALSA/PipeWire
+          # config.  Using the host system's own audio libs guarantees correct
+          # communication with the local audio daemon on every distro.
 
           # ── Bundle WebKit process helper executables ──
           WEBKIT_PROC_DIR="/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
