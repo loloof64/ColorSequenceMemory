@@ -1,7 +1,11 @@
-# v1.0.4
+# v1.0.5
 
 - fix missing sound library in DEB and AppImage files (Debian based systems)
 - fix missing icon on Deb installation
+
+# v1.0.4
+
+Failed to publish
 
 # v1.0.3
 

@@ -134,7 +134,7 @@ jobs:
           # libogg, libvorbis…) but its CMakeLists only bundles the plugin itself.
           # Copy those prebuilt deps into the Flutter bundle lib/ so every package
           # format (AppImage, DEB, RPM) can find them at runtime.
-          SOLOUD_LIBS=$(find "$HOME/.pub-cache" -path "*/flutter_soloud-*/linux/libs" -type d 2>/dev/null | head -1)
+          SOLOUD_LIBS=$(find "${PUB_CACHE:-$HOME/.pub-cache}" -path "*/flutter_soloud-*/linux/libs" -type d 2>/dev/null | head -1)
           if [ -n "$SOLOUD_LIBS" ]; then
             echo "Copying flutter_soloud libs from: $SOLOUD_LIBS"
             cp -a "$SOLOUD_LIBS"/*.so* build/linux/x64/release/bundle/lib/
