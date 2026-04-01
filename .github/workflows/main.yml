@@ -178,13 +178,18 @@ jobs:
           LAUNCHER
           chmod 755 "$PKG/usr/bin/$APP_NAME"
 
-          cat > "$PKG/usr/share/applications/$APP_NAME.desktop" << DESKTOP
+          # Desktop file must be named after the GTK application-id so that
+          # GNOME Shell on Wayland can match the running window's app-id
+          # (com.loloof64.color_sequence_memory) to this .desktop file.
+          # Without this, taskbar/dock and Alt-Tab icons are missing on Fedora.
+          cat > "$PKG/usr/share/applications/$APP_ID.desktop" << DESKTOP
           [Desktop Entry]
           Name=${APP_DISPLAY_NAME}
           Exec=${APP_NAME}
           Icon=${APP_NAME}
           Type=Application
           Categories=Game;
+          StartupWMClass=${APP_NAME}
           DESKTOP
 
           if [ -f assets/images/logo.png ]; then
@@ -251,13 +256,18 @@ jobs:
           LAUNCHER
           chmod 755 "$STAGED/usr/bin/$APP_NAME"
 
-          cat > "$STAGED/usr/share/applications/$APP_NAME.desktop" << DESKTOP
+          # Desktop file must be named after the GTK application-id so that
+          # GNOME Shell on Wayland can match the running window's app-id
+          # (com.loloof64.color_sequence_memory) to this .desktop file.
+          # Without this, taskbar/dock and Alt-Tab icons are missing on Fedora.
+          cat > "$STAGED/usr/share/applications/$APP_ID.desktop" << DESKTOP
           [Desktop Entry]
           Name=${APP_DISPLAY_NAME}
           Exec=${APP_NAME}
           Icon=${APP_NAME}
           Type=Application
           Categories=Game;Education;
+          StartupWMClass=${APP_NAME}
           DESKTOP
 
           if [ -f assets/images/logo.png ]; then
@@ -291,7 +301,7 @@ jobs:
           %files
           /usr/lib/${APP_NAME}/
           /usr/bin/${APP_NAME}
-          /usr/share/applications/${APP_NAME}.desktop
+          /usr/share/applications/${APP_ID}.desktop
           /usr/share/pixmaps/${APP_NAME}.png
           /usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png
           SPEC
@@ -362,20 +372,30 @@ jobs:
             cp -a "$WEBKIT_PROC_DIR/"* "$APP_DIR/usr/lib/webkit2gtk-4.1/"
           fi
 
-          cat > "$APP_DIR/$APP_NAME.desktop" << DESKTOP
+          # Root desktop file: named after the GTK application-id so that
+          # desktop integration tools (AppImageLauncher, appimaged) install it
+          # as com.loloof64.color_sequence_memory.desktop in
+          # ~/.local/share/applications/, allowing GNOME Shell on Wayland to
+          # match the running window's app-id to this .desktop entry.
+          cat > "$APP_DIR/$APP_ID.desktop" << DESKTOP
           [Desktop Entry]
           Name=${APP_DISPLAY_NAME}
           Exec=${APP_NAME}
           Icon=${APP_NAME}
           Type=Application
           Categories=Game;Education;
+          StartupWMClass=${APP_NAME}
           DESKTOP
-          cp "$APP_DIR/$APP_NAME.desktop" "$APP_DIR/usr/share/applications/"
+          cp "$APP_DIR/$APP_ID.desktop" "$APP_DIR/usr/share/applications/"
 
           if [ -f assets/images/logo.png ]; then
             cp assets/images/logo.png "$APP_DIR/$APP_NAME.png"
             cp assets/images/logo.png \
                "$APP_DIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+            # appimagetool also needs the icon at the root named after the
+            # desktop file basename (without extension). Create a symlink so
+            # both names are satisfied without duplicating the file.
+            ln -sf "$APP_NAME.png" "$APP_DIR/$APP_ID.png"
           else
             touch "$APP_DIR/$APP_NAME.png"
           fi
