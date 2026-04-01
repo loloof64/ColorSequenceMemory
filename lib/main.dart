@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_i18n/flutter_i18n.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:minisound/player_flutter.dart';
+import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -116,7 +116,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late final Player _engine;
   bool _engineReady = false;
   QuarterCirclePosition? _highlightedButton;
 
@@ -139,35 +138,41 @@ class _MyHomePageState extends State<MyHomePage> {
   final gapAfterGuessedSequence = Duration(milliseconds: 400);
 
   // Pre-generated sounds to reuse
-  late final Map<QuarterCirclePosition, dynamic> _preSounds = {};
-  late final dynamic _lostSound;
+  final Map<QuarterCirclePosition, AudioSource> _preSounds = {};
+  late AudioSource _lostSoundSource;
 
   @override
   void initState() {
     super.initState();
-    _engine = Player();
-    _engine.init().then((_) {
-      _engine.start().then((_) {
-        // Pre-generate all sounds
-        for (final entry in _associatedSounds.entries) {
-          final sound = _engine.genWaveform(
-            WaveformType.square,
-            freq: entry.value,
-          );
-          sound.volume = 0.25;
-          _preSounds[entry.key] = sound;
-        }
-        _lostSound = _engine.genWaveform(
-          WaveformType.square,
-          freq: lostSoundFrequence,
+    SoLoud.instance.init().then((_) async {
+      // Pre-generate all sounds
+      for (final entry in _associatedSounds.entries) {
+        final source = await SoLoud.instance.loadWaveform(
+          WaveForm.square,
+          false,
+          1.0,
+          0.0,
         );
-        _lostSound.volume = 0.25;
-
-        setState(() {
-          _engineReady = true;
-        });
+        SoLoud.instance.setWaveformFreq(source, entry.value);
+        _preSounds[entry.key] = source;
+      }
+      _lostSoundSource = await SoLoud.instance.loadWaveform(
+        WaveForm.square,
+        false,
+        1.0,
+        0.0,
+      );
+      SoLoud.instance.setWaveformFreq(_lostSoundSource, lostSoundFrequence);
+      setState(() {
+        _engineReady = true;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    SoLoud.instance.deinit();
+    super.dispose();
   }
 
   Future<void> _beep({
@@ -176,16 +181,20 @@ class _MyHomePageState extends State<MyHomePage> {
     required QuarterCirclePosition? highlightPosition,
   }) async {
     if (!_engineReady) return;
-    final sound = highlightPosition != null
-        ? _preSounds[highlightPosition]
-        : _lostSound;
+    final source = highlightPosition != null
+        ? _preSounds[highlightPosition]!
+        : _lostSoundSource;
 
     setState(() {
       _highlightedButton = highlightPosition;
     });
-    sound.play();
+    final handle = await SoLoud.instance.play(
+      source,
+      volume: 0.25,
+      looping: true,
+    );
     await Future.delayed(duration);
-    sound.stop();
+    await SoLoud.instance.stop(handle);
     setState(() {
       _highlightedButton = null;
     });

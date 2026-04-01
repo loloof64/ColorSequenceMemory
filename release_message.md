@@ -1,2 +1,1 @@
-- fix some spanish translations
-- migrate android plugin
+- replace sound library from minisound to flutter_solound

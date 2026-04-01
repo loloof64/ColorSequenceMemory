@@ -22,6 +22,14 @@ where you replace x.x.x with the package version.
 
 ## For developpers
 
+### Linux users
+
+The audio dependency needs the ALSA development headers. So if you're a Debian-based system
+
+```
+sudo apt-get install -y libasound2-dev
+```
+
 ### Android signing keystore
 
 The release APK/AAB must be signed with a personal keystore. This keystore and its credentials file (`key.properties`) are **never committed to git**.
