@@ -1,3 +1,1 @@
-- fix release v1.0.6 overriding v1.0.5
-- fix no sound on Debian based systems
-- fix no icon in the RPM file
+- fix no sound in linux artifacts

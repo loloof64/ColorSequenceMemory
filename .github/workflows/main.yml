@@ -123,9 +123,24 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libwebkit2gtk-4.1-dev libsecret-1-dev \
-            libasound2-dev \
+            libasound2-dev libpulse-dev \
             rpm patchelf libfuse2
       - run: flutter pub get
+      - name: Re-enable PulseAudio in flutter_soloud for Linux
+        run: |
+          # flutter_soloud disables PulseAudio in MiniAudio with -DMA_NO_PULSEAUDIO
+          # which causes no audio on PipeWire systems without pipewire-alsa.
+          # Re-enabling PulseAudio lets MiniAudio use pipewire-pulse as primary
+          # backend and ALSA as fallback, covering all modern desktop setups.
+          SOLOUD_CMAKE=$(find "${PUB_CACHE:-$HOME/.pub-cache}" \
+            -path "*/flutter_soloud-*/linux/src.cmake" 2>/dev/null | head -1)
+          if [ -n "$SOLOUD_CMAKE" ]; then
+            sed -i 's/add_definitions(-DMA_NO_PULSEAUDIO)/# MA_NO_PULSEAUDIO removed: PulseAudio re-enabled for distribution/' "$SOLOUD_CMAKE"
+            echo "Patched: $SOLOUD_CMAKE"
+          else
+            echo "::warning::flutter_soloud linux/src.cmake not found – PulseAudio patch skipped"
+          fi
+
       - run: flutter build linux --release
 
       - name: Bundle flutter_soloud prebuilt native libraries
@@ -207,7 +222,7 @@ jobs:
           Section: games
           Priority: optional
           Architecture: amd64
-          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libsecret-1-0, libasound2
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libsecret-1-0, libasound2, libpulse0
           Maintainer: loloof64
           Description: Memorize the sequence, then repeat it.
           CTRL
@@ -257,7 +272,7 @@ jobs:
           Summary:        ${APP_DISPLAY_NAME}
           License:        MIT
           AutoReqProv:    no
-          Requires:       gtk3, webkit2gtk4.1, libsecret, alsa-lib
+          Requires:       gtk3, webkit2gtk4.1, libsecret, alsa-lib, pulseaudio-libs
 
           %description
           Memorize the sequence, then repeat it.
@@ -298,14 +313,6 @@ jobs:
           # ── Bundle system shared libraries needed at runtime ──
           # Collect shared-lib deps of the main binary + Flutter plugin
           # .so files, then do two extra passes for transitive deps.
-          # glibc / ld / libgcc / libstdc++ are excluded, plus GPU driver-level
-          # graphics libs (EGL, GL, Mesa, Vulkan, DRM, GBM) so Flutter always uses
-          # the host system's own driver stack.
-          # libepoxy IS bundled: it resolves EGL/GL functions via dlopen() at runtime.
-          # Since libEGL/libGL are NOT bundled, libepoxy's dlopen("libEGL.so.1")
-          # falls through to the host's real driver, which has the proper platform
-          # extensions.  This avoids "No provider of eglGetPlatformDisplayEXT" on
-          # Fedora/NVIDIA while keeping the AppImage self-contained.
           EXCLUDE_RE="^()"
 
           bundle_deps() {
@@ -340,10 +347,14 @@ jobs:
               libdrm.so* libgbm.so* libglapi.so* \
               libwayland-egl.so* libxcb-glx.so* libxcb-dri*.so* 2>/dev/null || true )
 
-          # Explicitly bundle ALSA – miniaudio loads libasound via dlopen() at
-          # runtime so ldd never reports it as a dependency. Without this, audio
-          # is silently absent on Debian systems that lack libasound2.
-          for lib in /usr/lib/x86_64-linux-gnu/libasound.so.2*; do
+          # Bundle ALSA and PulseAudio explicitly: MiniAudio loads them via
+          # dlopen() at runtime so ldd never reports them as dependencies.
+          # PulseAudio (libpulse) is the preferred backend on PipeWire desktops;
+          # ALSA (libasound) is the fallback for systems without pipewire-pulse.
+          for lib in /usr/lib/x86_64-linux-gnu/libasound.so.2* \
+                     /usr/lib/x86_64-linux-gnu/libpulse.so.0* \
+                     /usr/lib/x86_64-linux-gnu/libpulse-simple.so.0* \
+                     /usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-*.so; do
             [ -f "$lib" ] && cp -L "$lib" "$APP_DIR/usr/lib/" || true
           done
 

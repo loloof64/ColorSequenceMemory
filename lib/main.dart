@@ -144,29 +144,34 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    SoLoud.instance.init().then((_) async {
-      // Pre-generate all sounds
-      for (final entry in _associatedSounds.entries) {
-        final source = await SoLoud.instance.loadWaveform(
-          WaveForm.square,
-          false,
-          1.0,
-          0.0,
-        );
-        SoLoud.instance.setWaveformFreq(source, entry.value);
-        _preSounds[entry.key] = source;
-      }
-      _lostSoundSource = await SoLoud.instance.loadWaveform(
-        WaveForm.square,
-        false,
-        1.0,
-        0.0,
-      );
-      SoLoud.instance.setWaveformFreq(_lostSoundSource, lostSoundFrequence);
-      setState(() {
-        _engineReady = true;
-      });
-    });
+    SoLoud.instance
+        .init()
+        .then((_) async {
+          // Pre-generate all sounds
+          for (final entry in _associatedSounds.entries) {
+            final source = await SoLoud.instance.loadWaveform(
+              WaveForm.square,
+              false,
+              1.0,
+              0.0,
+            );
+            SoLoud.instance.setWaveformFreq(source, entry.value);
+            _preSounds[entry.key] = source;
+          }
+          _lostSoundSource = await SoLoud.instance.loadWaveform(
+            WaveForm.square,
+            false,
+            1.0,
+            0.0,
+          );
+          SoLoud.instance.setWaveformFreq(_lostSoundSource, lostSoundFrequence);
+          setState(() {
+            _engineReady = true;
+          });
+        })
+        .catchError((error) {
+          debugPrint('SoLoud audio engine failed to initialize: $error');
+        });
   }
 
   @override
