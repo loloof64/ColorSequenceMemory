@@ -1,1 +1,2 @@
 - fix no sound on Debian based systems
+- fix no icon in the RPM file

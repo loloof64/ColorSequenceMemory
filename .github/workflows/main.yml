@@ -224,11 +224,14 @@ jobs:
           mkdir -p "$STAGED/usr/lib/$APP_NAME"
           mkdir -p "$STAGED/usr/bin"
           mkdir -p "$STAGED/usr/share/applications"
+          mkdir -p "$STAGED/usr/share/pixmaps"
+          mkdir -p "$STAGED/usr/share/icons/hicolor/256x256/apps"
 
           cp -r build/linux/x64/release/bundle/* "$STAGED/usr/lib/$APP_NAME/"
 
           cat > "$STAGED/usr/bin/$APP_NAME" << 'LAUNCHER'
           #!/bin/sh
+          export LD_LIBRARY_PATH="/usr/lib/color_sequence_memory/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           exec /usr/lib/color_sequence_memory/color_sequence_memory "$@"
           LAUNCHER
           chmod 755 "$STAGED/usr/bin/$APP_NAME"
@@ -242,14 +245,19 @@ jobs:
           Categories=Game;Education;
           DESKTOP
 
+          if [ -f assets/images/logo.png ]; then
+            cp assets/images/logo.png "$STAGED/usr/share/pixmaps/$APP_NAME.png"
+            cp assets/images/logo.png "$STAGED/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+          fi
+
           cat > "$TOP/SPECS/$APP_NAME.spec" << SPEC
-          Name:           chess-exercises-notes
+          Name:           color-sequence-memory
           Version:        ${VERSION}
           Release:        1
           Summary:        ${APP_DISPLAY_NAME}
           License:        MIT
           AutoReqProv:    no
-          Requires:       gtk3, webkit2gtk4.1, libsecret
+          Requires:       gtk3, webkit2gtk4.1, libsecret, alsa-lib
 
           %description
           Memorize the sequence, then repeat it.
@@ -257,10 +265,20 @@ jobs:
           %install
           cp -a ${STAGED}/* %{buildroot}/
 
+          %post
+          gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+          update-desktop-database -q /usr/share/applications 2>/dev/null || true
+
+          %postun
+          gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+          update-desktop-database -q /usr/share/applications 2>/dev/null || true
+
           %files
           /usr/lib/${APP_NAME}/
           /usr/bin/${APP_NAME}
           /usr/share/applications/${APP_NAME}.desktop
+          /usr/share/pixmaps/${APP_NAME}.png
+          /usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png
           SPEC
 
           rpmbuild --define "_topdir $TOP" -bb "$TOP/SPECS/$APP_NAME.spec"

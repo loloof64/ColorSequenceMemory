@@ -1,3 +1,8 @@
+# v1.0.6
+
+- fix no sound on Debian based systems
+- fix no icon in the RPM file
+
 # v1.0.5
 
 - fix missing sound library in DEB and AppImage files (Debian based systems)
