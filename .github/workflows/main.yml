@@ -87,7 +87,7 @@ jobs:
           EOF
 
       - run: flutter pub get
-      - run: flutter build apk --release
+      - run: flutter build apk --release -v
       - name: Rename artifacts
         run: |
           TAG="${{ needs.prepare.outputs.tag }}"

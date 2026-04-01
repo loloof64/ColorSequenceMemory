@@ -1,12 +1,16 @@
-# v1.0.2
+# v1.0.3
 
 - replace sound library from minisound to flutter_solound
 - fix some spanish translations
 - migrate android plugin
 
+# v1.0.2
+
+Failed to publish
+
 # v1.0.1
 
-not published
+Not published
 
 # v1.0.0
 
