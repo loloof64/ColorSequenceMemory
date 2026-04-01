@@ -1,3 +1,7 @@
+# v1.0.11
+
+- fix no icon for AppImage on Fedora
+
 # v1.0.10
 
 - fix no icon for AppImage on Fedora

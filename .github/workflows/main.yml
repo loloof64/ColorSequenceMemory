@@ -392,6 +392,14 @@ jobs:
             cp assets/images/logo.png "$APP_DIR/$APP_NAME.png"
             cp assets/images/logo.png \
                "$APP_DIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
+            # Install the icon under the application-ID name too so that:
+            # - gtk_window_set_icon_from_file() in my_application.cc can load
+            #   it directly via $APPDIR on any distro.
+            # - gtk_window_set_icon_name(APPLICATION_ID) resolves it when
+            #   XDG_DATA_DIRS points to the AppImage's usr/share (Fedora
+            #   GNOME/Wayland needs this to display the taskbar icon).
+            cp assets/images/logo.png \
+               "$APP_DIR/usr/share/icons/hicolor/256x256/apps/$APP_ID.png"
             # appimagetool also needs the icon at the root named after the
             # desktop file basename (without extension). Create a symlink so
             # both names are satisfied without duplicating the file.
@@ -409,6 +417,11 @@ jobs:
           # Suppress "Failed to load module" warnings for optional GTK modules
           # (canberra-gtk-module, pk-gtk-module) that are not bundled.
           export GTK_MODULES=""
+          # Expose the bundled icon theme to GTK so that icon-name lookups
+          # (gtk_window_set_icon_name) resolve inside the AppImage.
+          # Required on Fedora GNOME/Wayland where no system .desktop file
+          # is installed and the compositor relies on the programmatic icon.
+          export XDG_DATA_DIRS="$HERE/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
           exec "$HERE/usr/bin/color_sequence_memory" "$@"
           APPRUN
           chmod +x "$APP_DIR/AppRun"
