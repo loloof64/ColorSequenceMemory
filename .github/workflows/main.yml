@@ -207,7 +207,7 @@ jobs:
           Section: games
           Priority: optional
           Architecture: amd64
-          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libsecret-1-0
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libjavascriptcoregtk-4.1-0, libsecret-1-0, libasound2
           Maintainer: loloof64
           Description: Memorize the sequence, then repeat it.
           CTRL
@@ -321,6 +321,13 @@ jobs:
               libGLdispatch.so* libGLESv2.so* libOpenGL.so* libvulkan.so* \
               libdrm.so* libgbm.so* libglapi.so* \
               libwayland-egl.so* libxcb-glx.so* libxcb-dri*.so* 2>/dev/null || true )
+
+          # Explicitly bundle ALSA – miniaudio loads libasound via dlopen() at
+          # runtime so ldd never reports it as a dependency. Without this, audio
+          # is silently absent on Debian systems that lack libasound2.
+          for lib in /usr/lib/x86_64-linux-gnu/libasound.so.2*; do
+            [ -f "$lib" ] && cp -L "$lib" "$APP_DIR/usr/lib/" || true
+          done
 
           # ── Bundle WebKit process helper executables ──
           WEBKIT_PROC_DIR="/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"

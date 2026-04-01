@@ -1,2 +1,1 @@
-- fix missing sound library in DEB and AppImage files (Debian based systems)
-- fix missing icon on Deb installation
+- fix no sound on Debian based systems
