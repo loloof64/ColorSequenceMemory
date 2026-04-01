@@ -1,2 +1,1 @@
-- fix no sound in Rpm based linux AppImage
-- fix no icon on application window for Rpm based linux
+- fix no icon for AppImage on Fedora
