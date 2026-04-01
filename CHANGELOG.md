@@ -1,3 +1,7 @@
+# v1.0.4
+
+- fix missing sound library in DEB and AppImage files (Debian based systems)
+
 # v1.0.3
 
 - replace sound library from minisound to flutter_solound

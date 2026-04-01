@@ -128,6 +128,21 @@ jobs:
       - run: flutter pub get
       - run: flutter build linux --release
 
+      - name: Bundle flutter_soloud prebuilt native libraries
+        run: |
+          # flutter_soloud links against prebuilt .so files (libFLAC.so.14, libopus,
+          # libogg, libvorbis…) but its CMakeLists only bundles the plugin itself.
+          # Copy those prebuilt deps into the Flutter bundle lib/ so every package
+          # format (AppImage, DEB, RPM) can find them at runtime.
+          SOLOUD_LIBS=$(find "$HOME/.pub-cache" -path "*/flutter_soloud-*/linux/libs" -type d 2>/dev/null | head -1)
+          if [ -n "$SOLOUD_LIBS" ]; then
+            echo "Copying flutter_soloud libs from: $SOLOUD_LIBS"
+            cp -a "$SOLOUD_LIBS"/*.so* build/linux/x64/release/bundle/lib/
+          else
+            echo "::error::flutter_soloud linux/libs directory not found in pub cache"
+            exit 1
+          fi
+
       # ── DEB ──────────────────────────────────────────────────────
       - name: Package DEB
         run: |
@@ -142,6 +157,7 @@ jobs:
 
           cat > "$PKG/usr/bin/$APP_NAME" << 'LAUNCHER'
           #!/bin/sh
+          export LD_LIBRARY_PATH="/usr/lib/color_sequence_memory/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           exec /usr/lib/color_sequence_memory/color_sequence_memory "$@"
           LAUNCHER
           chmod 755 "$PKG/usr/bin/$APP_NAME"
