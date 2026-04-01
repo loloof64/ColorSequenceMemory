@@ -1,3 +1,7 @@
+# v1.0.7
+
+- fix release v1.0.6 overriding v1.0.5
+
 # v1.0.6
 
 - fix no sound on Debian based systems
